@@ -1,15 +1,15 @@
-# BIOSReborn
+# 项目原名：BIOS
 SimpleMultiBatchSystemLoader
 
 # NOTICE
 新版，好耶
 ---
 
-# BIOS是什么（What is this）
+# 这是什么（What is this）
 
-BIOS是我个人编写的通用bat系统启动器，相较于bat系统自带的启动器，它有许多新的功能，例如：
+BatchSL是我个人编写的通用bat系统启动器，相较于bat系统自带的启动器，它有许多新的功能，例如：
 
-BIOS is a generic bat system launcher written by me personally. Compared with the launcher that comes with the bat system, it has many new features, such as:
+BatchSL is a generic bat system launcher written by me personally. Compared with the launcher that comes with the bat system, it has many new features, such as:
 
     多系统引导，支持本地和网络启动，具体参照 boot.ini
     Multi-system boot, support local and network boot, refer to boot.ini for details
@@ -23,6 +23,7 @@ BIOS is a generic bat system launcher written by me personally. Compared with th
     - 修正程序运行位置
     - 首次运行时可自动配置
       (已知BUG:第三方SleepX.exe在win11的旧版控制台中会闪退)
+    - 实时DEBUG（正在完善）
 
 # Q&A
 

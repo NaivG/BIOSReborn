@@ -25,7 +25,7 @@ BatchSL is a generic bat system launcher written by me personally. Compared with
     - 修正程序运行位置
     - 首次运行时可自动配置
       (已知BUG:第三方SleepX.exe在win11的旧版控制台中会闪退)
-    - 实时DEBUG（正在完善）
+    - 实时日志显示（正在完善）
 
 # Q&A
 

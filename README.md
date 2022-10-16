@@ -1,7 +1,7 @@
 # 项目原名：BIOS
 SimpleMultiBatchSystemLoader
 
-将在八月份上线
+咕咕咕，好多bug
 
 # NOTICE
 新版，好耶

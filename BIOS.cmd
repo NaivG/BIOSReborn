@@ -5,8 +5,9 @@ cls
 mode 110,40
 color 0a
 set firstrun=0
-set Version=0.5.1
-set uptime=2022/5/18 21:46
+set Version=0.5.1r2
+set uptime=2022/6/18 21:30
+cd /d %~dp0
 set batpath=%cd%
 title BIOS
 subst X: /d 2>nul
@@ -15,56 +16,60 @@ cls
 if "%1"=="cmpfin" goto :cmpfin
 if exist err.tmp goto :rec
 if not exist settings.ini goto :firstrun
+if not exist BIOS.cmd (
+set img=3
+set errcode=0x03 Suffix ERROR
+goto bluescreen
+)
 for /f "tokens=1,* delims==" %%a in ('findstr "DEBUGLOG=" settings.ini') do (set dep=%%b)
 if "%dep%"=="on" echo [INFO]%date%%time%:Initialized Complete.>>%batpath%\DEBUG.LOG
 
 echo Checking Language Info...
 for /f "tokens=1,* delims==" %%a in ('findstr "language=" settings.ini') do (set lng=%%b)
 if not exist languages\%lng%.bat goto :lngerror
-
-::if "%lng%" neq "en" (if "%lng%" neq "cn" (goto :lngerror))
 if "%dep%"=="on" echo [INFO]%date%%time%:Loaded Language.>>%batpath%\DEBUG.LOG
 
-    if "%lng%"=="en" echo echo Check Program Integrity...
-call languages\%lng%.bat check1
+::::::::::::::::::::::::::::::::::::::::::::::::::
+for /f "tokens=1,* delims==" %%a in ('findstr "UAC=" settings.ini') do (set UAC=%%b)
+if "%UAC%" neq "on" goto :skipUAC
+NET FILE 1>NUL 2>NUL
+if '%errorlevel%' == '0' (
+    if "%dep%"=="on" echo [INFO]%date%%time%:Get UAC successfully.>>%batpath%\DEBUG.LOG 
+    ) else (
+    call languages\%lng%.bat check 1
+    if "%dep%"=="on" echo [INFO]%date%%time%:Getting UAC...>>%batpath%\DEBUG.LOG
+    UAC %~f0
+    exit
+    )
+ 
+::::::::::::::::::::::::::::::::::::::::::::::::::
+:skipUAC
 
+call languages\%lng%.bat check 2
 if not exist choice.exe (if not exist %windir%\System32\choice.exe set erc=A&goto :ltgerror)
 if "%dep%"=="on" echo [INFO]%date%%time%:Detected choice.exe.>>%batpath%\DEBUG.LOG
 if not exist unzip.exe set erc=B&goto :ltgerror
 if "%dep%"=="on" echo [INFO]%date%%time%:Detected unzip.exe.>>%batpath%\DEBUG.LOG
 
-    if "%lng%"=="en" echo Check System Compatibility...
-    if "%lng%"=="cn" echo 检查系统兼容性...
-call languages\%lng%.bat check2
-
-ping -n 2 127.1>nul
-if exist oldcons.tmp del oldcons.tmp&goto load
-ver|findstr /r /i " [版本 6.1.*]" > NUL && goto load
-ver|findstr /r /i " [版本 10.0.*]" > NUL && goto oldcons
-ver|findstr /r /i " [Version 6.1.*]" > NUL && goto load
-ver|findstr /r /i " [Version 10.0.*]" > NUL && goto oldcons
+call languages\%lng%.bat check 3
+ping -n 1 127.1>nul
+if exist oldcons.tmp del oldcons.tmp&goto :load
+ver|findstr /r /i " [版本 6.1.*]" > NUL && goto :load
+ver|findstr /r /i " [Version 6.1.*]" > NUL && goto :load
+ver|findstr /r /i " [版本 10.0.*]" > NUL && goto :oldcons
+ver|findstr /r /i " [Version 10.0.*]" > NUL && goto :oldcons
 
 if "%dep%"=="on" echo [WARN]%date%%time%:Found That The System Is Not Compatible.>>%batpath%\DEBUG.LOG
-
-    if "%lng%"=="en" echo Your System Is Not Compatible With This Program,Please Use Windows7 Or Windows10.
-    if "%lng%"=="cn" echo 您的系统与此程序不兼容，请使用Windows7或Windows10。
-call languages\%lng%.bat compatible1
-    if "%lng%"=="en" echo If You Want To Force It, Press Y, Otherwise Press N To Exit.
-    if "%lng%"=="cn" echo 如果要强制执行，请按Y，否则按N退出。
-call languages\%lng%.bat compatible2
+for /f "tokens=1,* delims==" %%a in ('findstr "force=" settings.ini') do (set force=%%b)
+if "%force%"=="on" goto :load
+call languages\%lng%.bat compatible 1
+call languages\%lng%.bat compatible 2
 choice -n -c yn >nul
 if errorlevel == 2 exit
-if errorlevel == 1 goto :load
-
-:firstrun
-set firstrun=1
-echo Set Language:
-echo 设置语言:
-echo Enter E To Set English.
-echo 输入 C 设置中文。
-choice -n -c ec >nul
-if errorlevel == 2 goto :zhcn
-if errorlevel == 1 goto :enus
+if errorlevel == 1 (
+    echo force=on>>settings.ini
+    goto :load
+)
 
 :ltgerror
 set img=1
@@ -78,58 +83,58 @@ if "%dep%"=="on" echo       Cannot Find Program %misprog%.>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
 goto bluescreen
 
-:enus
-echo Configuring Language...
-ping -n 2 127.1>nul
-set lng=en
-ping -n 1 127.1>nul
-echo Done!
-goto :checksys
+:firstrun
+set firstrun=1
+echo Set Language:
+echo 设置语言:
+echo Enter E To Set English.
+echo 输入 C 设置中文。
+choice -n -c ec >nul
+if errorlevel == 2 set lng=zh_cn
+if errorlevel == 1 set lng=en_us
 
-:zhcn
-echo 正在配置语言...
 ping -n 2 127.1>nul
-set lng=cn
+if not exist languages\%lng%.bat goto :lngerror
+call languages\%lng%.bat firstrun 1
 ping -n 1 127.1>nul
-echo 完成!
-goto :checksys
+call languages\%lng%.bat firstrun 2
 
-:checksys
 ver|findstr /r /i " [版本 10.0.*]" > NUL && goto oldcons
 ver|findstr /r /i " [Version 10.0.*]" > NUL && goto oldcons
+
 :checkpgm
-    if "%lng%"=="en" echo Check Program Integrity...
-    if "%lng%"=="cn" echo 检测程序完整性...
+call languages\%lng%.bat firstrun 3
 if not exist choice.exe (if not exist %windir%\System32\choice.exe set firstrunerr=1&set lostitem=choice.exe)
 if not exist unzip.exe set firstrunerr=1&set lostitem=%lostitem% unzip.exe
 if not exist wget.exe set firstrunerr=1&set lostitem=%lostitem% wget.exe
 if "%firstrunerr%" neq "1" (
-   if "%lng%"=="en" echo Done!
-   if "%lng%"=="cn" echo 完成!
+    call languages\%lng%.bat firstrun 4
 )
 if "%firstrunerr%"=="1" (
-   if "%lng%"=="en" echo Missing file: %lostitem%, this may cause an error.
-   if "%lng%"=="cn" echo 检测到缺失文件：%lostitem%，这可能会引起错误。
-   if "%lng%"=="en" echo Does the configuration continue? [Y,N]
-   if "%lng%"=="cn" echo 是否继续配置？[Y,N]
-   choice -n -c yn >nul
-    if errorlevel == 2 exit
-    if errorlevel == 1 goto :continuestg
+    call languages\%lng%.bat firstrun 5
+    call languages\%lng%.bat firstrun 6
+    choice -n -c yn >nul
+        if errorlevel == 2 exit
+        if errorlevel == 1 goto :continuestg
 )
 :continuestg
-if "%lng%"=="en" echo Automatic configuration in progress, please wait...
-if "%lng%"=="cn" echo 自动配置中，请稍后...
+call languages\%lng%.bat firstrun 7
+call languages\%lng%.bat firstrun 8
+    choice -n -c yn >nul
+        if errorlevel == 2 set UAC=off
+        if errorlevel == 1 set UAC=on
+
+call languages\%lng%.bat firstrun 9
 echo [BIOS Settings]>settings.ini
 echo Version=%Version%>>settings.ini
-echo number=050-%random%-%random%-%random%>>settings.ini
-if "%lng%"=="en" echo language=en>>settings.ini
-if "%lng%"=="cn" echo language=zh_cn>>settings.ini
+echo number=051-%random%-%random%-%random%>>settings.ini
+echo language=%lng%>>settings.ini
 if "%modyreg%"=="0" echo modyreg=off>>settings.ini
 if "%modyreg%"=="1" echo modyreg=on>>settings.ini
 echo DEBUGLOG=on>>settings.ini
+echo UAC=%UAC%>>settings.ini
 if not exist boot.ini (
-    if "%lng%"=="en" echo Generate default boot file...
-    if "%lng%"=="cn" echo 生成默认启动配置文件中...
+    call languages\%lng%.bat firstrun 10
    (
     echo [BIOS Boot Options Info]
     echo n=^2
@@ -144,10 +149,8 @@ if not exist boot.ini (
     echo address3b=www.baidu.com
    )>boot.ini
 )
-    if "%lng%"=="en" echo Done!
-    if "%lng%"=="cn" echo 完成!
-    if "%lng%"=="en" echo Press Any Key To Restart The Program...
-    if "%lng%"=="cn" echo 按任意键重启程序...
+call languages\%lng%.bat firstrun 11
+call languages\%lng%.bat firstrun 12
 pause>nul
 call BIOS.cmd 2>nul
 set img=3
@@ -171,30 +174,23 @@ if "%modyreg%"=="on" goto :Modify
 goto :load
 
 :checkmody
-    if "%lng%"=="en" echo It Has Been Detected That You Are Using The Windows 10 Operating System, Which May Cause Display Errors.
-    if "%lng%"=="cn" echo 检测到你正在使用Windows 10操作系统，这可能导致显示错误。
-    if "%lng%"=="en" echo Do You Want To Modify The Registry To Support This Program? [Y,N]
-    if "%lng%"=="cn" echo 是否修改注册表以支持此程序？[Y,N]
-    if "%lng%"=="en" echo Note: Some Systems Cannot Be Restored After Modifying The Registry, Please Choose Carefully!
-    if "%lng%"=="cn" echo 注意：某些系统修改注册表后将无法复原，请谨慎选择！
+call languages\%lng%.bat firstrun 13
+call languages\%lng%.bat firstrun 14
+call languages\%lng%.bat firstrun 15
 choice -n -c yn >nul
-if errorlevel == 2 goto :Modifyno
-if errorlevel == 1 goto :Modifyyes
-
-:Modifyno
-set modyreg=0
-ping -n 1 127.1>nul
-goto :checkpgm
-
-:Modifyyes
-set modyreg=1
-ping -n 1 127.1>nul
-goto :checkpgm
+if errorlevel == 2 (
+    set modyreg=0
+    ping -n 1 127.1>nul
+    goto :checkpgm
+)
+if errorlevel == 1 (
+    set modyreg=1
+    ping -n 1 127.1>nul
+    goto :checkpgm
+)
 
 :Modify
-    if "%lng%"=="en" echo Modifying Registry To Support This Program...
-    if "%lng%"=="cn" echo 正在修改注册表以支持此程序...
-call languages\%lng%.bat compatible3
+call languages\%lng%.bat compatible 3
 ping -n 2 127.1>nul
 set V=
 for /f "tokens=3" %%V in ('reg query HKCU\Console /v ForceV2 2^>nul') do set V=%%V
@@ -242,22 +238,23 @@ echo                                       ║╭╮╮　║║　║║║║╰═╮║
 echo                                       ║╰╯║╭╯╰╮║╰╯║╭═╯║
 echo                                       ╰══╯╰══╯╰══╯╰══╯
 echo.
-echo. & echo. & echo.
 echo.
-    if "%lng%"=="en" echo                                                  ver 0.5.0beta
-    if "%lng%"=="cn" echo                                                 版本  0.5.0beta
-call languages\%lng%.bat main1
+NET FILE 1>NUL 2>NUL
+if '%errorlevel%' == '0' (
+echo                                                 ADMIN  MODE
+) else (
+echo. 
+)
 echo.
-    if "%lng%"=="en" echo                                          Update Time:2021/5/29 15:04
-    if "%lng%"=="cn" echo                                            更新时间:2021/5/29 15:04
-call languages\%lng%.bat main2
+echo.
+call languages\%lng%.bat main 1
+echo.
+call languages\%lng%.bat main 2
 echo.
 echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo.
 echo.
 echo  -----------------------------------------------------------------------------------------------------------
-    if "%lng%"=="en" echo  Press B to enter Boot Menu,M to BootLoader MenuS to skip,R to reset settings     Copyright (c) 2020 NaivG.
-    if "%lng%"=="cn" echo      按B键进入启动菜单，M键进入BL菜单，S键跳过，R键重置                           版权所有（c）2020 NaivG。 
-call languages\%lng%.bat main3
+call languages\%lng%.bat main 3
 echo  -----------------------------------------------------------------------------------------------------------          
 choice -n -c bsrm >nul
 if errorlevel == 4 goto :blmenu
@@ -282,12 +279,10 @@ echo                                  → Boot Option
 ) else (
 echo                                     Boot Option
 )
-)
 if "%choices%" equ "2" (
 echo                                  → Language Option
 ) else (
 echo                                     Language Option
-)
 )
 echo.
 echo  ============================================================================================================
@@ -295,19 +290,17 @@ echo.
 :mnblm
 choice -n -c wse >nul
 if errorlevel == 3 goto :selecte
-if errorlevel == 2 goto :downm
-if errorlevel == 1 goto :upm
+if errorlevel == 2 (
+    if "%choices%"=="%max%" set "%choices%"=="%min%"&goto :blmenue
+    set /a choices=%choices%+1
+    goto :blmenue
+)
+if errorlevel == 1 (
+    if "%choices%"=="%min%" set "%choices%"=="%max%"&goto :blmenue
+    set /a choices=%choices%-1
+    goto :blmenue
+)
 goto :mnblm
-
-:upm
-if "%choices%"=="%min%" set "%choices%"=="%max%"&goto :blmenue
-set /a choices=%choices%-1
-goto :blmenue
-
-:downm
-if "%choices%"=="%max%" set "%choices%"=="%min%"&goto :blmenue
-set /a choices=%choices%+1
-goto :blmenue
 
 :selecte
 set m=%choices%
@@ -330,9 +323,7 @@ goto :blmenue
 
 :resetstg
 cls
-    if "%lng%"=="en" echo The Program Will Reset The Settings.
-    if "%lng%"=="cn" echo 程序将会重置设置。
-call languages\%lng%.bat main4
+echo The Program Will Reset The Settings.
 del /q settings.ini
 rd /s /q %temp%\BIOStemp
 ping -n 5 127.1>nul
@@ -356,33 +347,33 @@ if "%lng%"=="cn" title BIOS--启动
 cls
 if "%s%"=="img" goto img
 if "%s%"=="network" goto network
-    if "%lng%"=="en" echo Invalid Boot Option Type.
-    if "%lng%"=="cn" echo 无效的启动类型。
-call languages\%lng%.bat boot1
-    if "%lng%"=="en" echo Press Any Key To Exit...
-    if "%lng%"=="cn" echo 按任意键退出...
-call languages\%lng%.bat boot2
+call languages\%lng%.bat boot 1
+call languages\%lng%.bat boot 2
 pause>nul
 exit
 
 :img
 for /f "tokens=1,* delims==" %%a in ('findstr "img%m%b=" boot.ini') do (set BOOT=%%b)
 ping -n 2 127.1>nul
-    if "%lng%"=="en" echo Loading System Image...
-    if "%lng%"=="cn" echo 正在加载系统镜像...
-call languages\%lng%.bat boot3
+call languages\%lng%.bat boot 3
 ping -n 2 127.1>nul
+if not exist %BOOT%.img (
+  set img=6
+  set errcode=0x06 System Image ERROR
+  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  goto bluescreen  
+)
 ren %BOOT%.img TEMP.zip
 unzip -o TEMP 2>nul
 ren TEMP.zip %BOOT%.img
 ping -n 1 127.1>nul
-    if "%lng%"=="en" echo Done!
-    if "%lng%"=="cn" echo 完成!
-call languages\%lng%.bat boot4
+call languages\%lng%.bat boot 4
 ping -n 2 127.1>nul
-    if "%lng%"=="en" echo Creating Virtual Disk...
-    if "%lng%"=="cn" echo 正在创建虚拟磁盘...
-call languages\%lng%.bat boot5
+call languages\%lng%.bat boot 5
 ping -n 1 127.1>nul
 subst X: %~dp0disk >nul 2>nul
 md %temp%\BIOStemp 2>nul
@@ -393,14 +384,20 @@ echo rd /s /q %cd%\disk
 echo exit
 )>%temp%\BIOStemp\del.bat
 ping -n 1 127.1>nul
-    if "%lng%"=="en" echo Done!
-    if "%lng%"=="cn" echo 完成!
-call languages\%lng%.bat boot6
+call languages\%lng%.bat boot 6
 ping -n 3 127.1>nul
-    if "%lng%"=="en" echo Booting system...
-    if "%lng%"=="cn" echo 正在启动系统...
-call languages\%lng%.bat boot7
+call languages\%lng%.bat boot 7
 ping -n 2 127.1>nul
+if not exist X:\boot\BIOS\*.boot (
+  set img=6
+  set errcode=0x06 System Image ERROR
+  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist BOOT FILE.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  goto bluescreen  
+)
 cd /d X:\boot\BIOS
 ren *.boot sys.cmd
 call sys.cmd 2>nul
@@ -409,7 +406,7 @@ set errcode=0x06 System Image ERROR
 if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-if not exist %BOOT%.img if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist.>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" echo       The Pointed IMG File Has ERRORS.>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
 goto bluescreen
 
@@ -419,31 +416,32 @@ if not exist wget.exe ping -n 1 137.1>nul & goto:nterror
 :ecnext
 ping -n 3 127.1>nul
 set errorlevel=0
-    if "%lng%"=="en" echo Getting System Image From Server...
-    if "%lng%"=="cn" echo 正在从服务器获取系统镜像...
-call languages\%lng%.bat boot8
+call languages\%lng%.bat boot 8
+del /s /q download.img
 wget %address%
 if "%lng%"=="en" title BIOS--Boot
 if "%lng%"=="cn" title BIOS--启动
-    if "%lng%"=="en" echo Done!
-    if "%lng%"=="cn" echo 完成!
-call languages\%lng%.bat boot9
+call languages\%lng%.bat boot 9
 ping -n 2 127.1>nul
-    if "%lng%"=="en" echo Loading System Image...
-    if "%lng%"=="cn" echo 正在加载系统镜像...
-call languages\%lng%.bat boot10
+call languages\%lng%.bat boot 10
 ping -n 2 127.1>nul
+if not exist download.img (
+  set img=6
+  set errcode=0x06 System Image ERROR
+  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  goto bluescreen  
+)
 ren download.img TEMP.zip
 unzip -o TEMP 2>nul
 ren TEMP.zip download.img
 ping -n 1 127.1>nul
-    if "%lng%"=="en" echo Done!
-    if "%lng%"=="cn" echo 完成!
-call languages\%lng%.bat boot11
+call languages\%lng%.bat boot 11
 ping -n 2 127.1>nul
-    if "%lng%"=="en" echo Creating Virtual Disk...
-    if "%lng%"=="cn" echo 正在创建虚拟磁盘...
-call languages\%lng%.bat boot12
+call languages\%lng%.bat boot 12
 ping -n 1 127.1>nul
 subst X: %~dp0disk 2>nul
 md %temp%\BIOStemp 2>nul
@@ -454,14 +452,20 @@ echo rd /s /q %cd%\disk
 echo exit
 )>%temp%\BIOStemp\del.bat
 ping -n 1 127.1>nul
-    if "%lng%"=="en" echo Done!
-    if "%lng%"=="cn" echo 完成!
-call languages\%lng%.bat boot13
+call languages\%lng%.bat boot 13
 ping -n 3 127.1>nul
-    if "%lng%"=="en" echo Booting system...
-    if "%lng%"=="cn" echo 正在启动系统...
-call languages\%lng%.bat boot14
+call languages\%lng%.bat boot 14
 ping -n 2 127.1>nul
+if not exist X:\boot\BIOS\*.boot (
+  set img=6
+  set errcode=0x06 System Image ERROR
+  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
+  if not exist %BOOT%.img if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist BOOT FILE.>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  goto bluescreen  
+)
 cd /d X:\boot\BIOS
 ren *.boot sys.cmd
 call sys.cmd 2>nul
@@ -470,7 +474,7 @@ set errcode=0x06 System Image ERROR
 if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-if not exist download.img if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist.>>%batpath%\DEBUG.LOG
+if not exist download.img if "%dep%"=="on" echo       The Pointed IMG File Has ERRORS.>>%batpath%\DEBUG.LOG
 if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
 goto bluescreen
 
@@ -479,8 +483,6 @@ set erc=D
 goto :ltgerror
 
 :menu
-set min=1
-set max=3
 rem boot menu
 if "%lng%"=="en" title BIOS--Boot Menu
 if "%lng%"=="cn" title BIOS--启动菜单
@@ -496,38 +498,33 @@ echo                                  ║   → %boot1%  ║
 ) else (
 echo                                  ║      %boot1%  ║
 )
-)
 if "%choices%" equ "2" (
 echo                                  ║   → %boot2%                           ║
 ) else (
 echo                                  ║      %boot2%                           ║
 )
-)
 if "%choices%" equ "3" (
 echo                                  ║   → %boot3%                   ║
 ) else (
 echo                                  ║      %boot3%                   ║
-)
-)                
+)             
 echo                                  ║                                          ║
 echo                                  ╰═════════════════════╯
 echo.
 echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo.
 echo.
-if "%lng%"=="en" echo                            Press W up, S down, E to select, I to see option info.
-if "%lng%"=="cn" echo                                      按W向上，S向下，E选择，I显示选项信息。 
-call languages\%lng%.bat main5
+call languages\%lng%.bat main 4
 echo.
 choice -n -c wsei >nul
 if errorlevel == 4 goto :info
 if errorlevel == 3 goto :select
 if errorlevel == 2 (
-    if "%choices%"=="%max%" set "%choices%"=="%min%"&goto :logo2
+    if "%choices%"=="3" set choices=1& goto :logo2
     set /a choices=%choices%+1
     goto :logo2
 )
 if errorlevel == 1 (
-    if "%choices%"=="%min%" set "%choices%"=="%max%"&goto :logo2
+    if "%choices%"=="1" set choices=3& goto :logo2
     set /a choices=%choices%-1
     goto :logo2
 )
@@ -553,61 +550,45 @@ set s=%type3%
 goto :boot
 
 :info
-set dperror=0
 set m=%choices%
-if "%m%"=="1" goto a1
-if "%m%"=="2" goto a2
-if "%m%"=="3" goto a3
-
-:a1
-set bootname=%boot1%
-set s=%type1%
-goto:infonext
-
-:a2
-set bootname=%boot2%
-set s=%type2%
-goto:infonext
-
-:a3
-set bootname=%boot3%
-set s=%type3%
-goto:infonext
-
+if "%choices%"=="1" (
+    set bootname=%boot1%
+    set s=%type1%
+    goto :infonext
+)
+if "%choices%"=="2" (
+    set bootname=%boot2%
+    set s=%type2%
+    goto :infonext
+)
+if "%choices%"=="3" (
+    set bootname=%boot3%
+    set s=%type3%
+    goto :infonext
+)
 :infonext
 cls
 echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo.
 echo.
 echo  ============================================================================================================
-if "%lng%"=="en" echo                        Boot Option Name:%bootname%
-if "%lng%"=="cn" echo                        启动项名称:%bootname%  
-call languages\%lng%.bat main6
-if "%lng%"=="en" echo                        Boot Option Type:%s%
-if "%lng%"=="cn" echo                        启动项类型:%s%
-call languages\%lng%.bat main7
+call languages\%lng%.bat info 1
+call languages\%lng%.bat info 2
 if "%s%"=="img" (
 for /f "tokens=1,* delims==" %%a in ('findstr "img%m%b=" boot.ini') do (set BOOT=%%b)
-if "%lng%"=="en" echo                        System Image Name:%BOOT%.img
-if "%lng%"=="cn" echo                        系统镜像名称:%BOOT%.img
+call languages\%lng%.bat info 3
 if not exist %BOOT%.img (
-   set dperror=1
-    if "%lng%"=="en" echo                        System Status:Not Ready
-    if "%lng%"=="cn" echo                        系统状态:Not Ready
+    call languages\%lng%.bat info 4
+   ) else (
+    call languages\%lng%.bat info 5
    )
 ) else if "%s%"=="network" (
 for /f "tokens=1,* delims==" %%a in ('findstr "address%m%b=" boot.ini') do (set address=%%b)
-if "%lng%"=="en" echo                        System Image Address:%address%
-if "%lng%"=="cn" echo                        系统镜像路径:%address%
+call languages\%lng%.bat info 6
+call languages\%lng%.bat info 5
 ) else (
-if "%lng%"=="en" echo                        Invalid Boot Option Type.
-if "%lng%"=="cn" echo                        无效的启动类型。
+call languages\%lng%.bat info 7
 )
-if "%dperror%" neq "1" (
-if "%lng%"=="en" echo                        System Status:Ready
-if "%lng%"=="cn" echo                        系统状态:Ready
-)
-if "%lng%"=="en" echo                        Press Any Key To Return To The Boot Menu.
-if "%lng%"=="cn" echo                        按任意键返回启动菜单。 
+call languages\%lng%.bat info 8
 echo  ============================================================================================================
 pause>nul
 goto :logo2
@@ -694,9 +675,9 @@ if "%tmpver%" neq "%Version%" (
     echo   The Version has been set to %Version%.
 )
 for /f "tokens=1,* delims==" %%a in ('findstr "number=" settings.ini') do (set number=%%b)
-if "%number:~0,3%" neq "050" (
+if "%number:~0,3%" neq "051" (
     echo   Find Number Setting ERROR.Fixing...
-    set tmpnum=050-%random%-%random%-%random%
+    set tmpnum=051-%random%-%random%-%random%
     ping -n 2 127.1>nul
     echo   The Number has been set to %tmpnum%.
 ) else (
@@ -822,7 +803,7 @@ goto bluescreen
 :bluescreen
 title BIOS--ERROR
 subst X: /d 2>nul
-del /s /q err.tmp
+del /s /q %batpath%\err.tmp
 cls
 color 97
 echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo. & echo.
@@ -838,6 +819,6 @@ echo        按任意键退出...
 echo        Press Any Key To Exit...
 echo  ============================================================================================================
 echo %date% %time% Error Code:%errcode%>>%batpath%\ERROR.log
-echo code=%errcode%>err.tmp
+echo code=%errcode%>%batpath%\err.tmp
 pause>nul
 exit

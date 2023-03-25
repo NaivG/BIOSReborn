@@ -6,9 +6,17 @@ mode 110,40
 color 0a
 set firstrun=0
 set Version=0.5.2
-set uptime=2022/6/22 19:18
+set uptime=2022/7/14 20:18
 cd /d %~dp0
 set batpath=%cd%
+set log=1
+set ESC=
+set RD=%ESC%[31m
+set GN=%ESC%[32m
+set YW=%ESC%[33m
+set BL=%ESC%[34m
+set WT=%ESC%[37m
+set RN=%ESC%[0m
 title BIOS
 subst X: /d 2>nul
 md %temp%\BIOStemp 2>nul
@@ -22,22 +30,40 @@ set errcode=0x03 Suffix ERROR
 goto bluescreen
 )
 for /f "tokens=1,* delims==" %%a in ('findstr "DEBUGLOG=" settings.ini') do (set dep=%%b)
-if "%dep%"=="on" echo [INFO]%date%%time%:Initialized Complete.>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    pushd .
+    cd logsystem
+    del /s /q log*.bat
+    popd
+    cls
+    start %batpath%\logsystem\system.bat
+    echo echo %GN%[%time:~0,8% INFO] %WT%Initialized Complete.>>%batpath%\logsystem\log%log%.bat 
+    set /a log=%log%+1
+)
 
 echo Checking Language Info...
 for /f "tokens=1,* delims==" %%a in ('findstr "language=" settings.ini') do (set lng=%%b)
 if not exist languages\%lng%.bat goto :lngerror
-if "%dep%"=="on" echo [INFO]%date%%time%:Loaded Language.>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %GN%[%time:~0,8% INFO] %WT%Loaded Language.>>%batpath%\logsystem\log%log%.bat
+    set /a log=%log%+1
+)
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::
 for /f "tokens=1,* delims==" %%a in ('findstr "UAC=" settings.ini') do (set UAC=%%b)
 if "%UAC%" neq "on" goto :skipUAC
 NET FILE 1>NUL 2>NUL
 if '%errorlevel%' == '0' (
-    if "%dep%"=="on" echo [INFO]%date%%time%:Get UAC successfully.>>%batpath%\DEBUG.LOG 
+    if "%dep%"=="on" (
+        echo echo %GN%[%time:~0,8% INFO] %WT%Get UAC successfully.>>%batpath%\logsystem\log%log%.bat
+        set /a log=%log%+1  
+        )
     ) else (
     call languages\%lng%.bat check 1
-    if "%dep%"=="on" echo [INFO]%date%%time%:Getting UAC...>>%batpath%\DEBUG.LOG
+    if "%dep%"=="on" (
+        echo echo %GN%[%time:~0,8% INFO] %WT%Getting UAC...>>%batpath%\logsystem\log%log%.bat
+        set /a log=%log%+1 
+        )
     UAC %~f0
     exit
     )
@@ -47,19 +73,30 @@ if '%errorlevel%' == '0' (
 
 call languages\%lng%.bat check 2
 if not exist choice.exe (if not exist %windir%\System32\choice.exe set erc=A&goto :ltgerror)
-if "%dep%"=="on" echo [INFO]%date%%time%:Detected choice.exe.>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %GN%[%time:~0,8% INFO] %WT%Detected choice.exe.>>%batpath%\logsystem\log%log%.bat
+    set /a log=%log%+1 
+)
+
 if not exist unzip.exe set erc=B&goto :ltgerror
-if "%dep%"=="on" echo [INFO]%date%%time%:Detected unzip.exe.>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %GN%[%time:~0,8% INFO] %WT%Detected unzip.exe.>>%batpath%\logsystem\log%log%.bat
+    set /a log=%log%+1 
+)
 
 call languages\%lng%.bat check 3
 ping -n 1 127.1>nul
 if exist oldcons.tmp del oldcons.tmp&goto :load
-ver|findstr /r /i " [°æ±¾ 6.1.*]" > NUL && goto :load
-ver|findstr /r /i " [Version 6.1.*]" > NUL && goto :load
+ver|findstr /r /i " [°æ±¾ 6.*.*]" > NUL && goto :load
+ver|findstr /r /i " [Version 6.*.*]" > NUL && goto :load
 ver|findstr /r /i " [°æ±¾ 10.0.*]" > NUL && goto :oldcons
 ver|findstr /r /i " [Version 10.0.*]" > NUL && goto :oldcons
 
-if "%dep%"=="on" echo [WARN]%date%%time%:Found That The System Is Not Compatible.>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %YW%[%time:~0,8% WARN] %WT%Found That The System Is Not Compatible.>>%batpath%\logsystem\log%log%.bat
+    set /a log=%log%+1 
+)
+
 for /f "tokens=1,* delims==" %%a in ('findstr "force=" settings.ini') do (set force=%%b)
 if "%force%"=="on" goto :load
 call languages\%lng%.bat compatible 1
@@ -77,10 +114,13 @@ set errcode=0x%erc%1 Program Missing ERROR
 if "%erc%"=="A" set misprog=choice.exe
 if "%erc%"=="B" set misprog=unzip.exe
 if "%erc%"=="D" set misprog=wget.exe
-if "%dep%"=="on" echo [ERROR]%date%%time%:Missing Program %misprog%.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       Cannot Find Program %misprog%.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Missing Program %misprog%.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Cannot Find Program %misprog%.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+)
 goto bluescreen
 
 :firstrun
@@ -180,11 +220,14 @@ goto :continuestg
 :lngerror
 set img=2
 set errcode=0x02 Language Setting ERROR
-if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Load Language.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       The Pointing Language Is %lng%.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       The Language Can Only Be Chinese Or English.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Load Language.>>%batpath%\logsystem\log%log%.bat
+echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+echo echo       The Pointing Language Is %lng%.>>%batpath%\logsystem\log%log%.bat
+echo echo       The Language Can Only Be Chinese Or English.>>%batpath%\logsystem\log%log%.bat
+echo echo     End>>%batpath%\logsystem\log%log%.bat
+echo set end=^1>>%batpath%\logsystem\log%log%.bat
+)
 goto bluescreen
 
 :oldcons
@@ -231,10 +274,13 @@ if "%V%"=="0x1" (
 :olderror
 set img=4
 set errcode=0x04 Modifying Registry ERROR
-if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Modify Registry.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       Add DWORD Failed.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Modify Registry.>>%batpath%\logsystem\log%log%.bat
+echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+echo echo       Add DWORD Failed.>>%batpath%\logsystem\log%log%.bat
+echo echo     End>>%batpath%\logsystem\log%log%.bat
+echo set end=^1>>%batpath%\logsystem\log%log%.bat
+)
 goto bluescreen
 
 :load
@@ -325,12 +371,18 @@ goto :mnblm
 :selecte
 set m=%choices%
 if "%m%"=="1" goto :bootopt
-if "%m%"=="2" if "%dep%"=="on" echo [WARN]%date%%time%:ºÃÏñÕâÀï»¹Ã»Íê³É°É>>%batpath%\DEBUG.LOG
+if "%m%"=="2" if "%dep%"=="on" (
+    echo echo %YW%[%time:~0,8% WARN] %WT%ºÃÏñÕâÀï»¹Ã»Íê³É°É>>%batpath%\logsystem\log%log%.bat
+    set /a log=%log%+1 
+)
 goto :blmenue
 
 :bootopt
 cls
-if "%dep%"=="on" echo [WARN]%date%%time%:ºÃÏñÕâÀï»¹Ã»Íê³É°É>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %YW%[%time:~0,8% WARN] %WT%ºÃÏñÕâÀï»¹Ã»Íê³É°É>>%batpath%\logsystem\log%log%.bat
+    set /a log=%log%+1 
+)
 echo  ============================================================================================================
 echo.
 echo                                      Boot Option1:%boot1%
@@ -352,10 +404,12 @@ exit
 :booterror
 set img=5
 set errcode=0x05 Boot Option Missing ERROR
-if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Read Boot Opinion.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       Read Boot Opinion Failed.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Read Boot Opinion.>>%batpath%\logsystem\log%log%.bat
+echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+echo echo       Read Boot Opinion Failed.>>%batpath%\logsystem\log%log%.bat
+echo echo     End>>%batpath%\logsystem\log%log%.bat
+echo set end=^1>>%batpath%\logsystem\log%log%.bat
+)
 goto bluescreen
 
 :skip
@@ -380,11 +434,14 @@ ping -n 2 127.1>nul
 if not exist %BOOT%.img (
   set img=6
   set errcode=0x06 System Image ERROR
-  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Boot System.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Boot Failed.>>%batpath%\logsystem\log%log%.bat
+    echo echo       The Pointed IMG File Doesn't Exist.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+    )
   goto bluescreen  
 )
 ren %BOOT%.img TEMP.zip
@@ -411,11 +468,14 @@ ping -n 2 127.1>nul
 if not exist X:\boot\BIOS\*.boot (
   set img=6
   set errcode=0x06 System Image ERROR
-  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist BOOT FILE.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Boot System.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Boot Failed.>>%batpath%\logsystem\log%log%.bat
+    echo echo       The Pointed IMG File Doesn't Exist BOOT FILE.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+    )
   goto bluescreen  
 )
 cd /d X:\boot\BIOS
@@ -423,11 +483,14 @@ ren *.boot sys.cmd
 call sys.cmd 2>nul
 set img=6
 set errcode=0x06 System Image ERROR
-if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       The Pointed IMG File Has ERRORS.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Boot System.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Boot Failed.>>%batpath%\logsystem\log%log%.bat
+    echo echo       The Pointed IMG File Has ERRORS.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+    )
 goto bluescreen
 
 :network
@@ -448,11 +511,14 @@ ping -n 2 127.1>nul
 if not exist download.img (
   set img=6
   set errcode=0x06 System Image ERROR
-  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Boot System.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Boot Failed.>>%batpath%\logsystem\log%log%.bat 
+    echo echo       The Pointed IMG File Doesn't Exist.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+    )
   goto bluescreen  
 )
 ren download.img TEMP.zip
@@ -479,11 +545,14 @@ ping -n 2 127.1>nul
 if not exist X:\boot\BIOS\*.boot (
   set img=6
   set errcode=0x06 System Image ERROR
-  if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-  if not exist %BOOT%.img if "%dep%"=="on" echo       The Pointed IMG File Doesn't Exist BOOT FILE.>>%batpath%\DEBUG.LOG
-  if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+  if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Boot System.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Boot Failed.>>%batpath%\logsystem\log%log%.bat
+    echo echo       The Pointed IMG File Doesn't Exist BOOT FILE.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+    )
   goto bluescreen  
 )
 cd /d X:\boot\BIOS
@@ -491,11 +560,14 @@ ren *.boot sys.cmd
 call sys.cmd 2>nul
 set img=6
 set errcode=0x06 System Image ERROR
-if "%dep%"=="on" echo [ERROR]%date%%time%:Failed To Boot System.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo   ERROR Code:%errcode%>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo       Boot Failed.>>%batpath%\DEBUG.LOG
-if not exist download.img if "%dep%"=="on" echo       The Pointed IMG File Has ERRORS.>>%batpath%\DEBUG.LOG
-if "%dep%"=="on" echo     End>>%batpath%\DEBUG.LOG
+if "%dep%"=="on" (
+    echo echo %RD%[%time:~0,8% ERROR] %WT%Failed To Boot System.>>%batpath%\logsystem\log%log%.bat
+    echo echo   ERROR Code:%errcode%>>%batpath%\logsystem\log%log%.bat
+    echo echo       Boot Failed.>>%batpath%\logsystem\log%log%.bat
+    echo echo       The Pointed IMG File Has ERRORS.>>%batpath%\logsystem\log%log%.bat
+    echo echo     End>>%batpath%\logsystem\log%log%.bat
+    echo set end=^1>>%batpath%\logsystem\log%log%.bat
+    )
 goto bluescreen
 
 :nterror

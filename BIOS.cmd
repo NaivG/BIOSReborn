@@ -5,8 +5,8 @@ cls
 mode 110,40
 color 0a
 set firstrun=0
-set Version=0.5.1r2
-set uptime=2022/6/18 21:30
+set Version=0.5.2
+set uptime=2022/6/22 19:18
 cd /d %~dp0
 set batpath=%cd%
 title BIOS
@@ -85,6 +85,17 @@ goto bluescreen
 
 :firstrun
 set firstrun=1
+set n=10
+:wait
+SleepX -p "Wait for %n% seconds to automatic progress, or press a key..." -k 1
+cls
+if errorlevel 1 goto :KEYPRESSED
+set /a n=n-1
+if "%n%"=="0" goto :automatic
+goto :wait
+
+:KEYPRESSED
+cls
 echo Set Language:
 echo ÉèÖÃÓïÑÔ:
 echo Enter E To Set English.
@@ -115,15 +126,15 @@ if "%firstrunerr%"=="1" (
     call languages\%lng%.bat firstrun 6
     choice -n -c yn >nul
         if errorlevel == 2 exit
-        if errorlevel == 1 goto :continuestg
+        if errorlevel == 1 goto :uacstg
 )
-:continuestg
+:uacstg
 call languages\%lng%.bat firstrun 7
 call languages\%lng%.bat firstrun 8
     choice -n -c yn >nul
         if errorlevel == 2 set UAC=off
         if errorlevel == 1 set UAC=on
-
+:continuestg
 call languages\%lng%.bat firstrun 9
 echo [BIOS Settings]>settings.ini
 echo Version=%Version%>>settings.ini
@@ -156,6 +167,15 @@ call BIOS.cmd 2>nul
 set img=3
 set errcode=0x03 Suffix ERROR
 goto bluescreen
+
+:automatic
+set lng=en_us
+ver|findstr /r /i "°æ±¾" > NUL && set lng=zh_cn
+set modyreg=0
+ver|findstr /r /i " [°æ±¾ 10.0.*]" > NUL && set modyreg=1
+ver|findstr /r /i " [Version 10.0.*]" > NUL && set modyreg=1
+set UAC=off
+goto :continuestg
 
 :lngerror
 set img=2
